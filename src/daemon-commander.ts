@@ -18,8 +18,8 @@
 
 import type { Response } from 'got';
 import got from 'got';
-import { isWindows } from './util';
-import type { ConfigKeys, Configuration, StartInfo, Status } from './types';
+import { isWindows } from './util.js';
+import type { ConfigKeys, Configuration, StartInfo, Status } from './types.js';
 
 export class DaemonCommander {
   private apiPath: string;
@@ -96,6 +96,7 @@ export class DaemonCommander {
     const result = await got.post(url, {
       json: { properties: values },
       throwHttpErrors: false,
+      enableUnixSockets: true,
       // body: values,
     });
     if (result.statusCode !== 200) {

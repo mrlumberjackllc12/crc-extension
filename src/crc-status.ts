@@ -17,16 +17,16 @@
  ***********************************************************************/
 
 import * as extensionApi from '@podman-desktop/api';
-import type { Status, CrcStatus as CrcStatusApi } from './types';
-import { commander } from './daemon-commander';
-import { needSetup } from './crc-setup';
+import type { Status, CrcStatus as CrcStatusApi } from './types.js';
+import { commander } from './daemon-commander.js';
+import { needSetup } from './crc-setup.js';
 
 const defaultStatus: Status = { CrcStatus: 'Unknown', Preset: 'openshift' };
 const setupStatus: Status = { CrcStatus: 'Need Setup', Preset: 'Unknown' };
 const errorStatus: Status = { CrcStatus: 'Error', Preset: 'Unknown' };
 
 export class CrcStatus {
-  private updateTimer: NodeJS.Timer;
+  private updateTimer: NodeJS.Timeout;
   private _status: Status;
   private isSetupGoing: boolean;
   private statusChangeEventEmitter = new extensionApi.EventEmitter<Status>();

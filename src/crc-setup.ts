@@ -17,8 +17,8 @@
  ***********************************************************************/
 
 import * as extensionApi from '@podman-desktop/api';
-import { execPromise, getCrcCli } from './crc-cli';
-import { defaultSetUpPreset, productName } from './util';
+import { execPromise, getCrcCli } from './crc-cli.js';
+import { defaultSetUpPreset, productName } from './util.js';
 
 export async function needSetup(): Promise<boolean> {
   try {
@@ -92,7 +92,7 @@ export async function setUpCrc(logger: extensionApi.Logger, askForPreset = false
     setupBar.text = 'All done.';
   } catch (err) {
     console.error(err);
-    extensionApi.window.showErrorMessage(`${productName} configuration failed:\n${err}`);
+    await extensionApi.window.showErrorMessage(`${productName} configuration failed:\n${err}`);
     return false;
   } finally {
     setupBar.hide();

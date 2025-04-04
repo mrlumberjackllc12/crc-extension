@@ -19,9 +19,9 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as os from 'node:os';
 import * as extensionApi from '@podman-desktop/api';
-import { isMac, isWindows, productName, runCliCommand } from './util';
-import { getPodmanInstallationPath, getPodmanCli } from './podman-cli';
-import { crcStatus } from './crc-status';
+import { isMac, isWindows, productName, runCliCommand } from './util.js';
+import { getPodmanInstallationPath, getPodmanCli } from './podman-cli.js';
+import { crcStatus } from './crc-status.js';
 
 type ImageInfo = { engineId: string; name?: string; tag?: string };
 
@@ -53,11 +53,21 @@ export async function pushImageToCrcCluster(image: ImageInfo): Promise<void> {
           env.PATH = getPodmanInstallationPath();
         }
 
+        let keyName = 'id_ed25519';
+
+        try {
+          await fs.promises.access(`${os.homedir()}/.crc/machines/crc/id_ed25519`);
+        } catch (err: unknown) {
+          if (err && typeof err === 'object' && 'code' in err && err.code === 'ENOENT') {
+            keyName = 'id_ecdsa';
+          }
+        }
+
         const result = await runCliCommand(
           getPodmanCli(),
           [
             '--url=ssh://core@127.0.0.1:2222/run/podman/podman.sock',
-            `--identity=${os.homedir()}/.crc/machines/crc/id_ecdsa`,
+            `--identity=${os.homedir()}/.crc/machines/crc/${keyName}`,
             'load',
             '-i',
             filename,
@@ -68,14 +78,14 @@ export async function pushImageToCrcCluster(image: ImageInfo): Promise<void> {
         if (result.exitCode !== 0) {
           throw new Error(result.stdErr);
         }
-        extensionApi.window.showInformationMessage(`Image ${image.name} pushed to ${productName} cluster`, 'OK');
+        await extensionApi.window.showInformationMessage(`Image ${image.name} pushed to ${productName} cluster`, 'OK');
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : '' + error;
         progress.report({
           message: `Error while pushing image ${image.name} to  ${productName} cluster: ${errorMessage}`,
         });
       } finally {
-        fs.promises.rm(filename);
+        await fs.promises.rm(filename);
       }
     },
   );

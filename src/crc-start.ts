@@ -17,11 +17,11 @@
  ***********************************************************************/
 
 import * as extensionApi from '@podman-desktop/api';
-import { needSetup, setUpCrc } from './crc-setup';
-import { crcStatus } from './crc-status';
-import { commander } from './daemon-commander';
-import { crcLogProvider } from './log-provider';
-import { productName } from './util';
+import { needSetup, setUpCrc } from './crc-setup.js';
+import { crcStatus } from './crc-status.js';
+import { commander } from './daemon-commander.js';
+import { crcLogProvider } from './log-provider.js';
+import { productName } from './util.js';
 import { AccountManagementClient } from '@redhat-developer/rhaccm-client';
 
 interface ImagePullSecret {
@@ -58,14 +58,14 @@ export async function startCrc(
         crcStatus.setSetupRunning(false);
       }
     }
-    crcLogProvider.startSendingLogs(logger);
+    await crcLogProvider.startSendingLogs(logger);
     const result = await commander.start();
     if (result.Status === 'Running') {
       provider.updateStatus('started');
       return true;
     } else {
       provider.updateStatus('error');
-      extensionApi.window.showErrorMessage(`Error during starting ${productName}: ${result.Status}`);
+      await extensionApi.window.showErrorMessage(`Error during starting ${productName}: ${result.Status}`);
     }
   } catch (err) {
     if (typeof err.message === 'string') {
@@ -84,7 +84,7 @@ export async function startCrc(
         return true;
       }
     }
-    extensionApi.window.showErrorMessage(`${productName} start error: ${err}`);
+    await extensionApi.window.showErrorMessage(`${productName} start error: ${err}`);
     console.error(err);
     provider.updateStatus('stopped');
   }
@@ -137,7 +137,9 @@ async function askAndStorePullSecret(logger: extensionApi.Logger): Promise<boole
     }
   } catch (err) {
     // not valid json
-    extensionApi.window.showErrorMessage(`Start failed, pull secret is not valid. Please start again:\n '${err}'`);
+    await extensionApi.window.showErrorMessage(
+      `Start failed, pull secret is not valid. Please start again:\n '${err}'`,
+    );
     return false;
   }
   try {

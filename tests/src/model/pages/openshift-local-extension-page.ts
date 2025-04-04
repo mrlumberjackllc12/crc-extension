@@ -1,5 +1,5 @@
 /**********************************************************************
- * Copyright (C) 2023 Red Hat, Inc.
+ * Copyright (C) 2024 Red Hat, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,25 +15,12 @@
  *
  * SPDX-License-Identifier: Apache-2.0
  ***********************************************************************/
-import * as extensionApi from '@podman-desktop/api';
 
-import { commandManager } from './command.js';
-import { commander } from './daemon-commander.js';
+import type { Page } from '@playwright/test';
+import { ExtensionDetailsPage } from '@podman-desktop/tests-playwright';
 
-export function registerOpenConsoleCommand(): void {
-  commandManager.addTrayCommand({
-    id: 'crc.open.console',
-    label: 'Open Console',
-    isEnabled: status => status.CrcStatus === 'Running' && status.Preset === 'openshift',
-    isVisible: status => status.Preset === 'openshift',
-    callback: openConsole,
-  });
-}
-
-async function openConsole(): Promise<void> {
-  const result = await commander.consoleUrl();
-  const url = result.ClusterConfig.WebConsoleURL;
-  if (url) {
-    await extensionApi.env.openExternal(extensionApi.Uri.parse(url));
+export class OpenShiftLocalExtensionPage extends ExtensionDetailsPage {
+  constructor(page: Page) {
+    super(page, 'Red Hat OpenShift Local Extension');
   }
 }

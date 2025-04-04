@@ -20,27 +20,27 @@ import * as extensionApi from '@podman-desktop/api';
 import * as path from 'node:path';
 import * as os from 'node:os';
 import * as fs from 'node:fs';
-import { commander, isDaemonRunning } from './daemon-commander';
-import { defaultPreset, getPresetLabel, isWindows, productName, providerId } from './util';
-import type { CrcVersion } from './crc-cli';
-import { getPreset } from './crc-cli';
-import { getCrcVersion } from './crc-cli';
-import { getCrcDetectionChecks } from './detection-checks';
-import { CrcInstall } from './install/crc-install';
+import { commander, isDaemonRunning } from './daemon-commander.js';
+import { defaultPreset, getPresetLabel, isWindows, productName, providerId } from './util.js';
+import type { CrcVersion } from './crc-cli.js';
+import { getPreset } from './crc-cli.js';
+import { getCrcVersion } from './crc-cli.js';
+import { getCrcDetectionChecks } from './detection-checks.js';
+import { CrcInstall } from './install/crc-install.js';
 
-import { crcStatus } from './crc-status';
-import { startCrc } from './crc-start';
-import { needSetup, setUpCrc } from './crc-setup';
-import { deleteCrc, registerDeleteCommand } from './crc-delete';
-import { presetChangedEvent, saveConfig, syncPreferences } from './preferences';
-import { stopCrc } from './crc-stop';
-import { registerOpenTerminalCommand } from './dev-terminal';
-import { commandManager } from './command';
-import { registerOpenConsoleCommand } from './crc-console';
-import { registerLogInCommands } from './login-commands';
-import { defaultLogger } from './logger';
-import { pushImageToCrcCluster } from './image-handler';
-import type { Preset } from './types';
+import { crcStatus } from './crc-status.js';
+import { startCrc } from './crc-start.js';
+import { needSetup, setUpCrc } from './crc-setup.js';
+import { deleteCrc, registerDeleteCommand } from './crc-delete.js';
+import { presetChangedEvent, saveConfig, syncPreferences } from './preferences.js';
+import { stopCrc } from './crc-stop.js';
+import { registerOpenTerminalCommand } from './dev-terminal.js';
+import { commandManager } from './command.js';
+import { registerOpenConsoleCommand } from './crc-console.js';
+import { registerLogInCommands } from './login-commands.js';
+import { defaultLogger } from './logger.js';
+import { pushImageToCrcCluster } from './image-handler.js';
+import type { Preset } from './types.js';
 
 const CRC_PUSH_IMAGE_TO_CLUSTER = 'crc.image.push.to.cluster';
 const CRC_PRESET_KEY = 'crc.crcPreset';
@@ -126,7 +126,7 @@ async function _activate(extensionContext: extensionApi.ExtensionContext): Promi
   if (crcVersion) {
     // if daemon running we could sync preferences
     if (hasDaemonRunning) {
-      syncPreferences(provider, extensionContext, telemetryLogger);
+      await syncPreferences(provider, extensionContext, telemetryLogger);
     }
 
     // if no need to setup we could add commands
@@ -136,7 +136,7 @@ async function _activate(extensionContext: extensionApi.ExtensionContext): Promi
 
     // no need to setup and crc has cluster
     if (!isNeedSetup() && crcStatus.status.CrcStatus !== 'No Cluster') {
-      presetChanged(provider, extensionContext, telemetryLogger);
+      await presetChanged(provider, extensionContext, telemetryLogger);
     } else {
       // else get preset from cli as setup is not finished and daemon may not running
       const preset = await getPreset();
@@ -164,8 +164,8 @@ async function _activate(extensionContext: extensionApi.ExtensionContext): Promi
           registerProviderConnectionFactory(provider, extensionContext, telemetryLogger);
           await connectToCrc();
           addCommands(telemetryLogger);
-          syncPreferences(provider, extensionContext, telemetryLogger);
-          presetChanged(provider, extensionContext, telemetryLogger);
+          await syncPreferences(provider, extensionContext, telemetryLogger);
+          await presetChanged(provider, extensionContext, telemetryLogger);
         });
       },
     });
@@ -178,15 +178,13 @@ async function _activate(extensionContext: extensionApi.ExtensionContext): Promi
 
   extensionContext.subscriptions.push(
     presetChangedEvent(() => {
-      presetChanged(provider, extensionContext, telemetryLogger);
+      presetChanged(provider, extensionContext, telemetryLogger).catch(e => console.error(String(e)));
     }),
-  );
-
-  extensionContext.subscriptions.push(
     crcStatus.onStatusChange(e => {
       updateProviderVersionWithPreset(provider, e.Preset as Preset);
       provider.updateStatus(crcStatus.getProviderStatus());
     }),
+    commandManager,
   );
 }
 
@@ -254,7 +252,7 @@ async function createCrcVm(
     return;
   }
 
-  if (!isNeedSetup()) {
+  if (isNeedSetup()) {
     const initResult = await initializeCrc(provider, extensionContext, telemetryLogger, logger);
     if (!initResult) {
       throw new Error(`${productName} not initialized.`);
@@ -264,7 +262,7 @@ async function createCrcVm(
   const hasStarted = await startCrc(provider, logger, telemetryLogger);
   if (!connectionDisposable && hasStarted) {
     addCommands(telemetryLogger);
-    presetChanged(provider, extensionContext, telemetryLogger);
+    await presetChanged(provider, extensionContext, telemetryLogger);
   }
 }
 
@@ -278,9 +276,9 @@ async function initializeCrc(
   if (hasSetupFinished) {
     await needSetup();
     await connectToCrc();
-    presetChanged(provider, extensionContext, telemetryLogger);
+    await presetChanged(provider, extensionContext, telemetryLogger);
     addCommands(telemetryLogger);
-    syncPreferences(provider, extensionContext, telemetryLogger);
+    await syncPreferences(provider, extensionContext, telemetryLogger);
   }
   return hasSetupFinished;
 }
@@ -293,7 +291,7 @@ function addCommands(telemetryLogger: extensionApi.TelemetryLogger): void {
 
   commandManager.addCommand(CRC_PUSH_IMAGE_TO_CLUSTER, image => {
     telemetryLogger.logUsage('pushImage');
-    pushImageToCrcCluster(image);
+    return pushImageToCrcCluster(image);
   });
 }
 
@@ -334,12 +332,12 @@ export function deactivate(): void {
   crcStatus.stopStatusUpdate();
 }
 
-async function registerOpenShiftLocalCluster(
+function registerOpenShiftLocalCluster(
   name,
   provider: extensionApi.Provider,
   extensionContext: extensionApi.ExtensionContext,
   telemetryLogger: extensionApi.TelemetryLogger,
-): Promise<void> {
+): void {
   const status = () => crcStatus.getConnectionStatus();
   const apiURL = 'https://api.crc.testing:6443';
   const kubernetesProviderConnection: extensionApi.KubernetesProviderConnection = {
@@ -420,7 +418,7 @@ async function presetChanged(
 
   if (preset === 'podman') {
     // do nothing
-    extensionApi.window.showInformationMessage(
+    await extensionApi.window.showInformationMessage(
       'Currently we do not support the Podman preset of OpenShift Local. Please use preference to change this:\n\nSettings > Preferences > Red Hat OpenShift Local > Preset',
       'OK',
     );

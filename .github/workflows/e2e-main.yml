@@ -1,5 +1,5 @@
 #
-# Copyright (C) 2022-2024 Red Hat, Inc.
+# Copyright (C) 2024 Red Hat, Inc.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -15,110 +15,31 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-name: pr-check
+name: e2e-tests-main
 
-on: [pull_request]
+on:
+  schedule:
+    - cron: '0 0 * * *'
+
+  workflow_dispatch:
+    inputs:
+      organization:
+        default: 'crc-org'
+        description: 'Organization of the Podman Desktop repository'
+        type: string
+        required: true
+      repositoryName:
+        default: 'crc-extension'
+        description: 'Podman Desktop OpenShift Local Extension repository name'
+        type: string
+        required: true
+      branch:
+        default: 'main'
+        description: 'Podman Desktop OpenShift Local Extension repo branch'
+        type: string
+        required: true
 
 jobs:
-  windows:
-    name: Windows
-    runs-on: windows-2022
-    timeout-minutes: 60
-    env:
-      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 20
-
-      - name: Get yarn cache directory path
-        id: yarn-cache-dir-path
-        run: echo "dir=$(yarn cache dir)" >> ${env:GITHUB_OUTPUT}
-
-      - uses: actions/cache@v4
-        id: yarn-cache
-        with:
-          path: ${{ steps.yarn-cache-dir-path.outputs.dir }}
-          key: ${{ runner.os }}-yarn-${{ hashFiles('**/yarn.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-yarn-
-
-      - name: yarn
-        run: |
-          yarn --frozen-lockfile --network-timeout 180000
-
-      - name: Run Build
-        timeout-minutes: 20
-        run: yarn build
-
-  darwin:
-    name: macOS
-    runs-on: macos-14
-    timeout-minutes: 40
-    env:
-      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 20
-
-      - name: Get yarn cache directory path
-        id: yarn-cache-dir-path
-        run: echo "dir=$(yarn cache dir)" >> ${GITHUB_OUTPUT}
-
-      - uses: actions/cache@v4
-        id: yarn-cache
-        with:
-          path: ${{ steps.yarn-cache-dir-path.outputs.dir }}
-          key: ${{ runner.os }}-yarn-${{ hashFiles('**/yarn.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-yarn-
-
-      - name: Execute yarn
-        if: ${{ steps.cacheNodeModules.outputs.cache-hit != 'true' }}
-        run: yarn --frozen-lockfile --network-timeout 180000
-
-      - name: Run Build
-        timeout-minutes: 20
-        run: yarn build
-
-  lint-format-unit:
-    name: linter, formatters and unit tests
-    runs-on: ubuntu-20.04
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 20
-
-      - name: Get yarn cache directory path
-        id: yarn-cache-dir-path
-        run: echo "dir=$(yarn cache dir)" >> ${GITHUB_OUTPUT}
-
-      - uses: actions/cache@v4
-        id: yarn-cache
-        with:
-          path: ${{ steps.yarn-cache-dir-path.outputs.dir }}
-          key: ${{ runner.os }}-yarn-${{ hashFiles('**/yarn.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-yarn-
-
-      - name: Execute yarn
-        run: yarn --frozen-lockfile
-
-      - name: Run linter
-        run: yarn lint:check
-
-      - name: Run formatter
-        run: yarn format:check
-
-      - name: Run Tests
-        run: yarn test
-
   e2e-tests:
     name: e2e tests for ${{ matrix.os }}
     strategy:

@@ -1,5 +1,5 @@
 /**********************************************************************
- * Copyright (C) 2023 Red Hat, Inc.
+ * Copyright (C) 2024 Red Hat, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,25 +15,27 @@
  *
  * SPDX-License-Identifier: Apache-2.0
  ***********************************************************************/
-import * as extensionApi from '@podman-desktop/api';
 
-import { commandManager } from './command.js';
-import { commander } from './daemon-commander.js';
+import { defineConfig, devices } from '@playwright/test';
 
-export function registerOpenConsoleCommand(): void {
-  commandManager.addTrayCommand({
-    id: 'crc.open.console',
-    label: 'Open Console',
-    isEnabled: status => status.CrcStatus === 'Running' && status.Preset === 'openshift',
-    isVisible: status => status.Preset === 'openshift',
-    callback: openConsole,
-  });
-}
+export default defineConfig({
+  outputDir: 'tests/output/',
+  workers: 1,
+  timeout: 60000,
 
-async function openConsole(): Promise<void> {
-  const result = await commander.consoleUrl();
-  const url = result.ClusterConfig.WebConsoleURL;
-  if (url) {
-    await extensionApi.env.openExternal(extensionApi.Uri.parse(url));
-  }
-}
+  reporter: [
+    ['list'],
+    ['junit', { outputFile: 'tests/output/junit-results.xml' }],
+    ['json', { outputFile: 'tests/output/json-results.json' }],
+    ['html', { open: 'never', outputFolder: 'tests/playwright/output/html-results' }],
+  ],
+
+  projects: [
+    {
+      name: 'chromium',
+      use: {
+        ...devices['Desktop Chrome'],
+      },
+    },
+  ],
+});
